@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 fn main() {
-    implicit_conversions_7_1();
+    arrays_and_for_loops_7_2();
 }
 
 fn hello_world() {
@@ -36,11 +36,19 @@ fn implicit_conversions_7_1() {
 fn arrays_and_for_loops_7_2() {
 
     fn transpose(matrix: [[i32; 3]; 3]) -> [[i32; 3]; 3] {
-        unimplemented!()
+        let mut transposed =  [[0i32; 3]; 3];
+        for x in 0..3 {
+            for y in 0..3 {
+                transposed[x][y] = matrix[y][x];
+            }
+        }
+        transposed
     }
 
     fn pretty_print(matrix: &[[i32; 3]; 3]) {
-        unimplemented!()
+        println!("⎡{} {} {}⎤", matrix[0][0], matrix[0][1], matrix[0][2]);
+        println!("⎟{} {} {}⎟", matrix[1][0], matrix[1][1], matrix[1][2]);
+        println!("⎣{} {} {}⎦", matrix[2][0], matrix[2][1], matrix[2][2]);
     }
 
     let matrix = [
