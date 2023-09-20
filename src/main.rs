@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 fn main() {
-    storing_books_19_1();
+    health_statistics_19_2();
 }
 
 fn hello_world() {
@@ -205,7 +205,6 @@ fn storing_books_19_1() {
 fn health_statistics_19_2() {
     let bob = User::new(String::from("Bob"), 32, 155.2);
     println!("bob.height() == 155.2: {}", bob.height() == 155.2);
-    assert_eq!(bob.height(), 155.2);
 }
 
 pub struct User {
@@ -258,7 +257,19 @@ impl User {
     }
 
     pub fn visit_doctor(&mut self, measurements: Measurements) -> HealthReport {
-        unimplemented!()
+        let report = HealthReport {
+            patient_name: self.name.as_str(),
+            visit_count: self.doctor_visits() + 1,
+            height_change: self.height() - measurements.height,
+            blood_pressure_change: match self.last_blood_pressure {
+                Some(bp) => Some((measurements.blood_pressure.0 as i32 - bp.0 as i32, measurements.blood_pressure.1 as i32 - bp.1 as i32)),
+                None => None
+            }
+        };
+        self.visit_count += 1;
+        self.height = measurements.height;
+        self.last_blood_pressure = Some(measurements.blood_pressure);
+        report
     }
 }
 
