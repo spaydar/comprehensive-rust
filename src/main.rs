@@ -275,32 +275,38 @@ impl User {
 
 // Strings and Iterators 22.2
 fn strings_and_iterators_22_2() {
-    println!("prefix_matches(\"/v1/publishers/*/books\",\"/v1/publishers/foo/books/book1\") {}",
-             prefix_matches("/v1/publishers/*/books","/v1/publishers/foo/books/book1"));
+    // println!("prefix_matches(\"/v1/publishers/*/books\",\"/v1/publishers/foo/books/book1\") {}",
+    //          prefix_matches("/v1/publishers/*/books","/v1/publishers/foo/books/book1"));
+    println!("/v1/publishers/*/books\", \"/v1/publishers/foo/booksByAuthor\") {}",
+             prefix_matches("/v1/publishers/*/books","/v1/publishers/foo/booksByAuthor"));
+
 }
 
 pub fn prefix_matches(prefix: &str, request_path: &str) -> bool {
-    let mut prefix_tokens = prefix.split("/");
-    let mut request_path_tokens = request_path.split("/");
+    let mut prefix_tokens = prefix.split("/").skip(1);
+    let mut request_path_tokens = request_path.split("/").skip(1);
     let mut wildcard_active = false;
     while let Some(p) = prefix_tokens.next() {
         if p == "*" {
             wildcard_active = true;
             continue;
         }
-        match request_path_tokens.next() {
-            Some(r) => {
-                if r == p {
-                    if wildcard_active {
-                        wildcard_active = false;
-                    }
-                } else {
-                    if !wildcard_active {
-                        return false;
-                    }
+        if wildcard_active {
+            while wildcard_active {
+                match request_path_tokens.next() {
+                    Some(r) => {
+                        if r == p {
+                            wildcard_active = false;
+                        }
+                    },
+                    None => { return false; }
                 }
-            },
-            _ => ()
+            }
+        } else {
+            match request_path_tokens.next() {
+                Some(r) if r == p => (),
+                _ => { return false; }
+            }
         };
     }
     true
