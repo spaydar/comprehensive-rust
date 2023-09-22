@@ -312,6 +312,23 @@ pub fn prefix_matches(prefix: &str, request_path: &str) -> bool {
     true
 }
 
+// The solution seems to assume that a wildcard can only match one path segment.
+// My implementation above works for cases where a wildcard can match an arbitrary
+// number of path segments i.e. multiple directories
+pub fn prefix_matches_solution(prefix: &str, request_path: &str) -> bool {
+
+    let mut request_segments = request_path.split('/');
+
+    for prefix_segment in prefix.split('/') {
+        let Some(request_segment) = request_segments.next() else {
+            return false;
+        };
+        if request_segment != prefix_segment && prefix_segment != "*" {
+            return false;
+        }
+    }
+    true
+}
 // Tests
 // Luhn tests
 #[test]
