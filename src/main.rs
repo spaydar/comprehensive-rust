@@ -455,6 +455,7 @@ fn a_simple_gui_library_27_1() {
 }
 
 // Polygon Struct
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Point {
     x: i32,
     y: i32
@@ -468,27 +469,94 @@ impl Point {
     fn magnitude(&self) -> f64 {
         f64::from(self.x.pow(2) + self.y.pow(2)).sqrt()
     }
+
+    fn dist(&self, p2: Point) -> f64 {
+        f64::from((self.x - p2.x).pow(2) + (self.y - p2.y).pow(2)).sqrt()
+    }
+}
+
+impl std::ops::Add for Point {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self::new(self.x + other.x, self.y + other.y)
+    }
 }
 
 pub struct Polygon {
-    // add fields
+    points: Vec<Point>
 }
 
 impl Polygon {
-    // add methods
+    fn new() -> Polygon {
+        Polygon { points: vec![] }
+    }
+
+    fn add_point(&mut self, p: Point) {
+        self.points.push(p);
+    }
+
+    fn left_most_point(&self) -> Option<Point> {
+        self.points.iter().min_by_key(|p| p.x).cloned()
+    }
+}
+
+impl std::ops::Deref for Polygon {
+    type Target = Vec<Point>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.points
+    }
 }
 
 pub struct Circle {
-    // add fields
+    center: Point,
+    radius: i32
 }
 
 impl Circle {
-    // add methods
+    fn new(p: Point, r: i32) -> Circle {
+        Circle { center: p, radius: r}
+    }
 }
 
 pub enum Shape {
     Polygon(Polygon),
     Circle(Circle),
+}
+
+impl From<Polygon> for Shape {
+    fn from(p: Polygon) -> Self { Shape::Polygon(p) }
+}
+
+impl From<Circle> for Shape {
+    fn from(c: Circle) -> Self { Shape::Circle(c) }
+}
+
+impl Shape {
+    fn perimeter(&self) -> f64 {
+        match self {
+            Shape::Polygon(p) => {
+                match p.iter().count() > 2 {
+                    false => 0f64,
+                    true => {
+                        let mut prev = None;
+                        let mut d = p.points.first().unwrap().dist(*p.points.last().unwrap());
+                        for p in p.iter() {
+                            if let Some(pl) = prev {
+                                d += p.dist(pl);
+                            }
+                            prev = Some(*p);
+                        }
+                        d
+                    }
+                }
+            },
+            Shape::Circle(c) => {
+                c.radius as f64 * 2f64 * std::f64::consts::PI
+            }
+        }
+    }
 }
 
 #[cfg(test)]
