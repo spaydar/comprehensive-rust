@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 fn main() {
-    a_simple_gui_library_27_1();
+    let _ = safe_ffi_wrapper_31_1();
 }
 
 fn hello_world() {
@@ -706,7 +706,18 @@ impl DirectoryIterator {
     fn new(path: &str) -> Result<DirectoryIterator, String> {
         // Call opendir and return a Ok value if that worked,
         // otherwise return Err with a message.
-        unimplemented!()
+        let path_cstring = match CString::new(path) {
+            Ok(s) => s,
+            Err(e) => {
+                return Err(format!("Null byte found at position {} in path", e.nul_position()));
+            }
+        };
+        unsafe {
+            Ok(DirectoryIterator {
+                path: path_cstring.clone(),
+                dir: ffi::opendir(path_cstring.into_raw())
+            })
+        }
     }
 }
 
@@ -714,14 +725,24 @@ impl Iterator for DirectoryIterator {
     type Item = OsString;
     fn next(&mut self) -> Option<OsString> {
         // Keep calling readdir until we get a NULL pointer back.
-        unimplemented!()
+        unsafe {
+            Some(
+                OsStr::from_bytes(
+                    CStr::from_ptr(
+                        (*ffi::readdir(self.dir)).d_name.as_ptr()
+                    ).to_bytes()
+                ).to_owned()
+            )
+        }
     }
 }
 
 impl Drop for DirectoryIterator {
     fn drop(&mut self) {
         // Call closedir as needed.
-        unimplemented!()
+        unsafe {
+            ffi::closedir(self.dir);
+        }
     }
 }
 
