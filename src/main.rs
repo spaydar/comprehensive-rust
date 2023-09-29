@@ -706,17 +706,11 @@ impl DirectoryIterator {
     fn new(path: &str) -> Result<DirectoryIterator, String> {
         // Call opendir and return a Ok value if that worked,
         // otherwise return Err with a message.
-        let path_cstring = match CString::new(path) {
-            Ok(s) => s,
-            Err(e) => {
-                return Err(format!("Null byte found at position {} in path", e.nul_position()));
-            }
-        };
-        unsafe {
-            Ok(DirectoryIterator {
-                path: path_cstring.clone(),
-                dir: ffi::opendir(path_cstring.into_raw())
-            })
+        let path_cstring = CString::new(path).map_err(|e| format!("Null byte found at position {} in path", e.nul_position()))?;
+        let dir = unsafe { ffi::opendir(path_cstring.as_ptr())};
+        match dir.is_null() {
+            true => Err(format!("Unable to open path: {:?}", path_cstring)),
+            false => Ok(DirectoryIterator { path: path_cstring, dir })
         }
     }
 }
@@ -725,11 +719,15 @@ impl Iterator for DirectoryIterator {
     type Item = OsString;
     fn next(&mut self) -> Option<OsString> {
         // Keep calling readdir until we get a NULL pointer back.
+        let dirent = unsafe { ffi::readdir(self.dir) };
+        if dirent.is_null() {
+            return None;
+        }
         unsafe {
             Some(
                 OsStr::from_bytes(
                     CStr::from_ptr(
-                        (*ffi::readdir(self.dir)).d_name.as_ptr()
+                        (*dirent).d_name.as_ptr()
                     ).to_bytes()
                 ).to_owned()
             )
@@ -740,8 +738,10 @@ impl Iterator for DirectoryIterator {
 impl Drop for DirectoryIterator {
     fn drop(&mut self) {
         // Call closedir as needed.
-        unsafe {
-            ffi::closedir(self.dir);
+        if !self.dir.is_null() {
+            if unsafe { ffi::closedir(self.dir) } != 0 {
+                panic!("Could not close {:?}", self.path);
+            }
         }
     }
 }
