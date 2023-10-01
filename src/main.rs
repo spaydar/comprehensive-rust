@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 fn main() {
-    let _ = safe_ffi_wrapper_31_1();
+    dining_philosophers_52_1();
 }
 
 fn hello_world() {
@@ -749,30 +749,44 @@ impl Drop for DirectoryIterator {
 // Dining Philosophers
 fn dining_philosophers_52_1() {
     // Create forks
-    let forks = [Fork, Fork, Fork, Fork];
+    let forks = (0..PHILOSOPHERS.len())
+        .map(|_| Arc::new(Mutex::new(Fork)))
+        .collect::<Vec<_>>();
 
     // Create philosophers
-    let (tx, rx) = mpsc::channel();
-    let mut philosophers: Vec<Philosopher> = vec![];
+    let (tx, rx) = mpsc::sync_channel(10);
     for i in 0..PHILOSOPHERS.len() {
-        philosophers.push(
-            Philosopher {
-                name: PHILOSOPHERS[i].to_owned(),
-                left_fork: &forks[i],
-                right_fork: &forks[(i + 1) % PHILOSOPHERS.len()],
-                thoughts: tx.clone()
+        let mut left_fork = Arc::clone(&forks[i]);
+        let mut right_fork = Arc::clone(&forks[(i + 1) % PHILOSOPHERS.len()]);
+
+        // Break the symmetry to avoid a deadlock
+        if i == PHILOSOPHERS.len() - 1 {
+            std::mem::swap(&mut left_fork, &mut right_fork);
+        }
+
+        let p = Philosopher {
+            name: PHILOSOPHERS[i].to_owned(),
+            left_fork: Arc::clone(&forks[i]),
+            right_fork: Arc::clone(&forks[(i + 1) % PHILOSOPHERS.len()]),
+            thoughts: tx.clone()
+        };
+
+        // Make each of them think and eat 100 times
+        thread::spawn(move || {
+            for i in 0..100 {
+                println!("Iteration {} for {}", i + 1, p.name.as_str());
+                p.think();
+                p.eat();
             }
-        );
+        });
     }
 
-    // Make each of them think and eat 100 times
-    for p in philosophers {
-
-    }
+    // This makes it so the program doesn't hang after the messages have been consumed
+    drop(tx);
 
     // Output their thoughts
-    for msg in rx.iter() {
-        println!("{msg}");
+    for thought in rx.iter() {
+        println!("{thought}");
     }
 }
 
@@ -784,9 +798,9 @@ struct Fork;
 
 struct Philosopher {
     name: String,
-    left_fork: &Fork,
-    right_fork: &Fork,
-    thoughts: mpsc::Sender<String>
+    left_fork: Arc::<Mutex::<Fork>>,
+    right_fork: Arc::<Mutex::<Fork>>,
+    thoughts: mpsc::SyncSender<String>
 }
 
 impl Philosopher {
@@ -798,6 +812,9 @@ impl Philosopher {
 
     fn eat(&self) {
         // Pick up forks...
+        println!("{} is trying to eat", &self.name);
+        self.left_fork.lock().ok();
+        self.right_fork.lock().ok();
         println!("{} is eating...", &self.name);
         thread::sleep(Duration::from_millis(10));
     }
