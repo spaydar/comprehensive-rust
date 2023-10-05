@@ -1,8 +1,14 @@
+#![allow(dead_code)]
+
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
 #[tokio::main]
-async fn main() -> io::Result<()> {
+async fn main() {
+    join_example().await
+}
+
+async fn take_call_wrapper() -> io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:6142").await?;
     println!("listening on port 6142");
 
@@ -46,4 +52,27 @@ async fn main() -> io::Result<()> {
         //     }
         // });
     }
+}
+
+async fn join_example() {
+    use anyhow::Result;
+    use futures::future;
+    use std::collections::HashMap;
+
+    async fn size_of_page(url: &str) -> Result<usize> {
+        let resp = reqwest::get(url).await?;
+        Ok(resp.text().await?.len())
+    }
+
+    let urls: [&str; 4] = [
+        "https://google.com",
+        "https://httpbin.org/ip",
+        "https://play.rust-lang.org/",
+        "BAD_URL",
+    ];
+    let futures_iter = urls.into_iter().map(size_of_page);
+    let results = future::join_all(futures_iter).await;
+    let page_sizes_dict: HashMap<&str, Result<usize>> =
+        urls.into_iter().zip(results.into_iter()).collect();
+    println!("{:?}", page_sizes_dict);
 }
