@@ -5,7 +5,7 @@ use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() {
-    join_example().await
+    dining_philosophers().await
 }
 
 async fn take_call_wrapper() -> io::Result<()> {
@@ -75,4 +75,73 @@ async fn join_example() {
     let page_sizes_dict: HashMap<&str, Result<usize>> =
         urls.into_iter().zip(results.into_iter()).collect();
     println!("{:?}", page_sizes_dict);
+}
+
+// Dining Philosophers Async
+use std::sync::Arc;
+use tokio::time;
+use tokio::sync::mpsc::{self, Sender};
+use tokio::sync::Mutex;
+
+struct Fork;
+
+struct Philosopher {
+    name: String,
+    left_fork: Arc<Mutex<Fork>>,
+    right_fork: Arc<Mutex<Fork>>,
+    thoughts: Sender<String>
+}
+
+impl Philosopher {
+    async fn think(&self) {
+        self.thoughts
+            .send(format!("Eureka! {} has a new idea!", &self.name)).await
+            .unwrap();
+    }
+
+    async fn eat(&self) {
+        // Pick up forks...
+        println!("{} is trying to eat", &self.name);
+        let _ = self.left_fork.lock().await;
+        let _ = self.right_fork.lock().await;
+        println!("{} is eating...", &self.name);
+        time::sleep(time::Duration::from_millis(5)).await;
+    }
+}
+
+static PHILOSOPHERS: &[&str] =
+    &["Socrates", "Plato", "Aristotle", "Thales", "Pythagoras"];
+
+async fn dining_philosophers() {
+    // Create forks
+    let forks = (0..PHILOSOPHERS.len())
+        .map(|_| Arc::new(Mutex::new(Fork)))
+        .collect::<Vec<_>>();
+
+    // Create philosophers
+    let (tx, mut rx) = mpsc::channel(5);
+    for i in 0..PHILOSOPHERS.len() {
+        let p = Philosopher {
+            name: PHILOSOPHERS[i].to_owned(),
+            left_fork: Arc::clone(&forks[i]),
+            right_fork: Arc::clone(&forks[(i + 1) % PHILOSOPHERS.len()]),
+            thoughts: tx.clone()
+        };
+
+        // Make them think and eat
+        tokio::spawn(async move {
+            for i in 0..5 {
+                println!("Iteration {} for {}", i + 1, p.name.as_str());
+                p.think().await;
+                p.eat().await;
+            }
+        });
+    }
+
+    drop(tx);
+
+    // Output their thoughts
+    while let Some(thought) = rx.recv().await {
+        println!("{thought}");
+    }
 }
