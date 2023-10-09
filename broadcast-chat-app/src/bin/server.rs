@@ -11,9 +11,28 @@ async fn handle_connection(
     mut ws_stream: WebsocketStream<TcpStream>,
     bcast_tx: Sender<String>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    ws_stream
+        .send(Message::text("Welcome to chat! Type a message".into()))
+        .await?;
+    let mut bcast_rx = bcast_tx.subscribe();
 
-    // TODO: For a hint, see the description of the task below.
-
+    loop {
+        tokio::select! {
+            incoming = ws_stream.next() => match incoming {
+                Some(Ok(msg)) => {
+                    if let Some(text) = msg.as_text() {
+                        println!("From client {addr:?}: {text:?}");
+                        bcast_tx.send(text.into())?;
+                    }
+                },
+                Some(Err(err)) => return Err(err.into()),
+                None => return Ok(())
+            },
+            msg = bcast_rx.recv() => {
+                ws_stream.send(Message::text(msg?)).await?;
+            }
+        }
+    }
 }
 
 #[tokio::main]
